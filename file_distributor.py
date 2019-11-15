@@ -31,20 +31,22 @@ from re import search
 from os import path, makedirs, rename
 from glob import iglob
 from datetime import datetime
+from configparser import ConfigParser
 
 
-def distr_files(in_dir, out_dir, filename_templ, time_out, logs_dir) -> None:
+def distr_files(dirs_in, dirs_out, filename_templ, server_timeout, server_logs) -> None:
     """
     Checks for new files in <in_dir> and distributes them to <out_dir> to an
     appropriate directory according to date parsed from file name
     """
 
-    for filepath in iglob(path.join(in_dir, filename_templ)):
+    for filepath in iglob(path.join(dirs_in, filename_templ)):
+        filename = _filename_from(filepath)
 
         if (_file_not_empty(filepath) and
-                _file_older_than(time_out, _filename_from(filepath))):
+                _file_older_than(int(server_timeout), filename)):
             print(filepath, path.getsize(filepath))
-            _distr_file(filepath, out_dir)
+            _distr_file(filepath, dirs_out)
 
 
 def _file_not_empty(filepath) -> bool:
@@ -62,12 +64,14 @@ def _get_datetime_from(filename) -> datetime:
     date_time = search('f_(.*)_ext.dat', filename)
     return datetime.strptime(date_time.group(1), "%Y%m%d%H%M%S")
 
+
 def _get_date_from(filename) -> tuple:
     date_time = search('f_(.*)_ext.dat', filename).group(1)
     year = date_time[0:4]
     month = date_time[4:6]
     day = date_time[6:8]
     return year, month, day
+
 
 def _filename_from(filepath) -> str:
     return path.basename(filepath)
@@ -80,7 +84,8 @@ def _move_file(from_path, to_dir) -> None:
 
 def _distr_file(filepath, output_dir) -> None:
     """
-    Distribute file with <filename> to the appropriate directory in <output_dir>
+    Distributes file with <filepath> to the appropriate directory in
+    <output_dir> (creates output_dir if doesn't exist)
     """
 
     date = _get_date_from(_filename_from(filepath))
@@ -90,15 +95,22 @@ def _distr_file(filepath, output_dir) -> None:
     _move_file(filepath, target_dir)
 
 
+def _parse_args_from(ini) -> dict:
+    args = dict()
+    config = ConfigParser()
+    config.read(ini)
+    for section in config.sections():
+        print(section)
+        for param in config[section]:
+            print('   ' + param)
+            args[section + '_' + param] = config[section][param]
+    print(args)
+    return args
+
+
 def main():
-    # hard-coded parameters for distributor draft implementation testing
-    kwargs = {
-        'in_dir': "./in/",
-        'out_dir': "./archive/",
-        'time_out': 5,
-        'logs_dir': "./logs/",
-        'filename_templ': 'f_[12][019][0-9][0-9][01][0-9][0-3][0-9][012][0-9][0-5][0-9][0-5][0-9]_ext.dat'
-    }
+    kwargs = _parse_args_from('config.ini')
+    kwargs['filename_templ'] = 'f_[12][019][0-9][0-9][01][0-9][0-3][0-9][012][0-9][0-5][0-9][0-5][0-9]_ext.dat'
 
     distr_files(**kwargs)
 
