@@ -1,5 +1,7 @@
-# exercises
-Example modules
+# File distributor module
+The script checks a given directory for new files matching a pattern,
+and if found moves them to an appropriate directory according to a date
+parsed from the file name. If no target directory found it is created.
 
 # files
 Configuration file: /etc/file_distributor/config.ini
