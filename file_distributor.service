@@ -5,7 +5,7 @@ Conflicts=getty@tty1.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3.7 file_distributor.py
+ExecStart=/usr/bin/python3.7 /usr/sbin/file_distributor.py
 StandardInput=tty-force
 
 [Install]
