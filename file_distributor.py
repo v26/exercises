@@ -32,6 +32,7 @@ from os import path, makedirs, rename
 from glob import iglob
 from datetime import datetime
 from configparser import ConfigParser
+from time import sleep
 
 
 def distr_files(dirs_in, dirs_out, filename_templ, server_timeout, server_logs) -> None:
@@ -109,10 +110,12 @@ def _parse_args_from(ini) -> dict:
 
 
 def main():
-    kwargs = _parse_args_from('config.ini')
-    kwargs['filename_templ'] = 'f_[12][019][0-9][0-9][01][0-9][0-3][0-9][012][0-9][0-5][0-9][0-5][0-9]_ext.dat'
+    while True:
+        kwargs = _parse_args_from(path.join('etc', 'file_distributor', 'config.ini'))
+        kwargs['filename_templ'] = 'f_[12][019][0-9][0-9][01][0-9][0-3][0-9][012][0-9][0-5][0-9][0-5][0-9]_ext.dat'
 
-    distr_files(**kwargs)
+        distr_files(**kwargs)
+        sleep(int(kwargs['server_timeout']) * 60)
 
 
 if __name__ == "__main__":
