@@ -27,40 +27,67 @@ The script parses following arguments from ./config.ini file:
     time_out (int): interval to check for new files
 """
 
-from re import compile
+from re import search
+from os import path, makedirs, rename
+from glob import iglob
+from datetime import datetime
 
 
-def dist_files(in_dir, out_dir, filename_templ, time_out, logs_dir) -> None:
+def distr_files(in_dir, out_dir, filename_templ, time_out, logs_dir) -> None:
     """
     Checks for new files in <in_dir> and distributes them to <out_dir> to an
     appropriate directory according to date parsed from file name
     """
 
-    filenames = _filenames_by_templ_in(in_dir, filename_templ)
+    for filepath in iglob(path.join(in_dir, filename_templ)):
 
-    if filenames:
-        for filename in filenames:
-            _distribute_file(filename, out_dir)
-
-
-def _filenames_by_templ_in(directory, template) -> list:
-    """
-    Check in <directory> for files with names following the <template>
-    """
-
-    filenames = list()
-
-    # TODO implement the method
-
-    return filenames
+        if (_file_not_empty(filepath) and
+                _file_older_than(time_out, _filename_from(filepath))):
+            print(filepath, path.getsize(filepath))
+            _distr_file(filepath, out_dir)
 
 
-def _distribute_file(filename, output_dir) -> None:
+def _file_not_empty(filepath) -> bool:
+    return path.getsize(filepath) > 0
+
+
+def _file_older_than(minutes, filename) -> bool:
+    now = datetime.now().replace(microsecond=0)
+    mod_time = _get_datetime_from(filename)
+    diff_in_min = (now - mod_time).total_seconds() / 60
+    return diff_in_min > minutes
+
+
+def _get_datetime_from(filename) -> datetime:
+    date_time = search('f_(.*)_ext.dat', filename)
+    return datetime.strptime(date_time.group(1), "%Y%m%d%H%M%S")
+
+def _get_date_from(filename) -> tuple:
+    date_time = search('f_(.*)_ext.dat', filename).group(1)
+    year = date_time[0:4]
+    month = date_time[4:6]
+    day = date_time[6:8]
+    return year, month, day
+
+def _filename_from(filepath) -> str:
+    return path.basename(filepath)
+
+
+def _move_file(from_path, to_dir) -> None:
+    to_path = path.join(to_dir, _filename_from(from_path))
+    rename(from_path, to_path)
+
+
+def _distr_file(filepath, output_dir) -> None:
     """
     Distribute file with <filename> to the appropriate directory in <output_dir>
     """
 
-    # TODO implement the method
+    date = _get_date_from(_filename_from(filepath))
+    target_dir = path.join(output_dir, *date)
+
+    makedirs(target_dir, exist_ok=True)
+    _move_file(filepath, target_dir)
 
 
 def main():
@@ -68,12 +95,12 @@ def main():
     kwargs = {
         'in_dir': "./in/",
         'out_dir': "./archive/",
-        'time_out': 0.5,
+        'time_out': 5,
         'logs_dir': "./logs/",
-        'filename_templ': compile(r'^f_[12][019][0-9][0-9][01][0-9][0-3][0-9][012][0-9][0-5][0-9][0-5][0-9]_ext\.dat$')
+        'filename_templ': 'f_[12][019][0-9][0-9][01][0-9][0-3][0-9][012][0-9][0-5][0-9][0-5][0-9]_ext.dat'
     }
 
-    dist_files(**kwargs)
+    distr_files(**kwargs)
 
 
 if __name__ == "__main__":
