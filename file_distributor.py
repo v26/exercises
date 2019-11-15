@@ -46,7 +46,6 @@ def distr_files(dirs_in, dirs_out, filename_templ, server_timeout, server_logs) 
 
         if (_file_not_empty(filepath) and
                 _file_older_than(int(server_timeout), filename)):
-            print(filepath, path.getsize(filepath))
             _distr_file(filepath, dirs_out)
 
 
@@ -101,11 +100,8 @@ def _parse_args_from(ini) -> dict:
     config = ConfigParser()
     config.read(ini)
     for section in config.sections():
-        print(section)
         for param in config[section]:
-            print('   ' + param)
             args[section + '_' + param] = config[section][param]
-    print(args)
     return args
 
 
