@@ -33,19 +33,24 @@ from glob import iglob
 from datetime import datetime
 from configparser import ConfigParser
 from time import sleep
+import logging
+import logging.handlers
+from sys import exc_info
+
+CONFIG_PATH = path.join(path.sep, 'etc', 'file_distributor', 'config.ini')
 
 
-def distr_files(dirs_in, dirs_out, filename_templ, server_timeout, server_logs) -> None:
+def distr_files(dirs_in, dirs_out, server_fname_templ, server_timeout) -> None:
     """
     Checks for new files in <in_dir> and distributes them to <out_dir> to an
     appropriate directory according to date parsed from file name
     """
 
-    for filepath in iglob(path.join(dirs_in, filename_templ)):
-        filename = _filename_from(filepath)
+    for filepath in iglob(path.join(dirs_in, server_fname_templ)):
+        fname = _fname_from(filepath)
 
         if (_file_not_empty(filepath) and
-                _file_older_than(int(server_timeout), filename)):
+                _file_older_than(float(server_timeout), fname)):
             _distr_file(filepath, dirs_out)
 
 
@@ -73,12 +78,12 @@ def _get_date_from(filename) -> tuple:
     return year, month, day
 
 
-def _filename_from(filepath) -> str:
+def _fname_from(filepath) -> str:
     return path.basename(filepath)
 
 
 def _move_file(from_path, to_dir) -> None:
-    to_path = path.join(to_dir, _filename_from(from_path))
+    to_path = path.join(to_dir, _fname_from(from_path))
     rename(from_path, to_path)
 
 
@@ -88,30 +93,67 @@ def _distr_file(filepath, output_dir) -> None:
     <output_dir> (creates output_dir if doesn't exist)
     """
 
-    date = _get_date_from(_filename_from(filepath))
+    date = _get_date_from(_fname_from(filepath))
     target_dir = path.join(output_dir, *date)
 
     makedirs(target_dir, exist_ok=True)
     _move_file(filepath, target_dir)
+    my_logger.info(f'Distributed {filepath} to {target_dir}')
 
 
-def _parse_args_from(ini) -> dict:
-    args = dict()
-    config = ConfigParser()
-    config.read(ini)
-    for section in config.sections():
-        for param in config[section]:
-            args[section + '_' + param] = config[section][param]
-    return args
+def _parse_args_from(ini, attribs) -> dict:
+    res = dict()
+    if attribs:
+        config = ConfigParser()
+        config.read(ini)
+        for section, params in attribs.items():
+            for param in params:
+                res_key = section + '_' + param
+                res[res_key] = config[section][param]
+
+    return res
+
+
+# LOGGING SETUP
+log_params = {
+    'dirs': ['logs'],
+    'server': ['log_name']
+}
+log_args = _parse_args_from(CONFIG_PATH, log_params)
+log_dir = log_args['dirs_logs']
+log_name = log_args['server_log_name']
+log_path = path.join(log_dir, log_name)
+
+if not path.exists(log_path):
+    makedirs(log_dir, exist_ok=True)
+
+my_logger = logging.getLogger('operations_logger')
+my_logger.setLevel(logging.INFO)
+
+# Add the log message handler to the logger
+handler = logging.handlers.RotatingFileHandler(log_path,
+                                               maxBytes=1000000,
+                                               backupCount=3,
+                                               )
+
+log_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(log_format)
+my_logger.addHandler(handler)
 
 
 def main():
     while True:
-        kwargs = _parse_args_from(path.join('etc', 'file_distributor', 'config.ini'))
-        kwargs['filename_templ'] = 'f_[12][019][0-9][0-9][01][0-9][0-3][0-9][012][0-9][0-5][0-9][0-5][0-9]_ext.dat'
+        params = {
+            'dirs': ['in', 'out'],
+            'server': ['timeout', 'fname_templ']
+        }
+        kwargs = _parse_args_from(CONFIG_PATH, params)
 
-        distr_files(**kwargs)
-        sleep(int(kwargs['server_timeout']) * 60)
+        try:
+            distr_files(**kwargs)
+            sleep(float(kwargs['server_timeout']) * 60)
+        except Exception as e:
+            my_logger.exception("Exception!")
 
 
 if __name__ == "__main__":
