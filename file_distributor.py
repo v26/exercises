@@ -153,7 +153,7 @@ def main():
             distr_files(**kwargs)
             sleep(float(kwargs['server_timeout']) * 60)
         except Exception as e:
-            my_logger.exception("Exception!!!")
+            my_logger.exception("Exception!")
 
 
 if __name__ == "__main__":
