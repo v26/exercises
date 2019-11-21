@@ -17,6 +17,7 @@ chmod +x file_distributor_setup.sh<br />
 sudo bash file_distributor_setup.sh<br />
 
 # Commands to control script:
+sudo systemctl status file_distributor.service        #To check service state <br />
 sudo systemctl stop file_distributor.service          #To stop running service <br />
 sudo systemctl start file_distributor.service         #To start running service <br />
 sudo systemctl restart file_distributor.service       #To restart running service <br />
